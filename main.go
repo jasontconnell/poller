@@ -76,11 +76,19 @@ func statusHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(content))
 }
 
-// func statusHandler(w http.ResponseWriter, r *http.Request) {
-// 	msg := fmt.Sprintf(`{ "status": %v }`, -1)
-// 	w.Header().Add("Content-Type", "application/json")
-// 	w.Write([]byte(msg))
-// }
+func reloadHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
+	path := site.GetState("path").(string)
+	list, err := getUrls(path)
+
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	site.AddState("urls", list)
+
+	w.Write([]byte("Done"))
+}
 
 func main() {
 	urlsfile := flag.String("u", "", "url filename")
@@ -88,6 +96,7 @@ func main() {
 
 	site := server.NewSite(server.Configuration{HostName: "localhost", Port: 4444})
 	site.AddHandler("/status", statusHandler)
+	site.AddHandler("/reload", reloadHandler)
 
 	if *urlsfile == "" {
 		flag.PrintDefaults()
@@ -100,6 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 	site.AddState("urls", list)
+	site.AddState("path", *urlsfile)
 	go poll(&site, list)
 
 	server.Start(site)
