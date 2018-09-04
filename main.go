@@ -7,6 +7,7 @@ import (
 	"github.com/jasontconnell/server"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -32,23 +33,32 @@ func poll(site *server.Site, list []*urlResult) {
 			Timeout: time.Second * 5,
 		}
 
+		var wg sync.WaitGroup
+		wg.Add(len(list))
+
 		for i := 0; i < len(list); i++ {
 			u := list[i]
 			now := time.Now()
 
 			if u.retry.After(now) {
+				wg.Done()
 				continue
 			}
 
 			u.last = time.Now()
-			s, err := get(c, u.url)
-			if err != nil {
-				fmt.Println(err)
-			}
+			go func(u *urlResult) {
+				s, err := get(c, u.url)
+				if err != nil {
+					fmt.Println(err)
+				}
+				u.status = s
+				wg.Done()
+			}(u)
 
-			u.status = s
 			u.retry = time.Now().Add(1 * time.Minute)
 		}
+
+		wg.Wait()
 
 		time.Sleep(time.Second * 5)
 	}
@@ -92,9 +102,12 @@ func reloadHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	urlsfile := flag.String("u", "", "url filename")
+	host := flag.String("h", "", "hostname")
+	port := flag.Int("p", 4444, "port")
 	flag.Parse()
 
-	site := server.NewSite(server.Configuration{HostName: "localhost", Port: 4444})
+	site := server.NewSite(server.Configuration{HostName: *host, Port: *port})
+
 	site.AddHandler("/status", statusHandler)
 	site.AddHandler("/reload", reloadHandler)
 
