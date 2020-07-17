@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/jasontconnell/server"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/jasontconnell/server"
 )
 
 type urlResult struct {
@@ -66,21 +67,32 @@ func poll(site *server.Site, list []*urlResult) {
 
 func statusHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
 	list := site.GetState("urls").([]*urlResult)
-	content := "<html><head><style>.success { background-color: #3f3; } .redir { background-color: #999; } .error { background-color: #f33; }</style></head><body><table><thead><tr><th>Url</th><th>Status</th><th>Next Retry</th><th>Last Retry</th></tr></thead><tbody>"
+	content := "<html><head><meta http-equiv=\"refresh\" content=\"15\"><style>.success { background-color: #3f3; } .redir { background-color: #999; } .error { background-color: #f33; }</style></head><body><table><thead><tr><th>Url</th><th>Status</th><th>Next Retry</th><th>Last Retry</th></tr></thead><tbody>"
 	for _, u := range list {
 		var r, l time.Duration
 		r = time.Until(u.retry).Truncate(time.Second)
 		l = time.Since(u.last).Truncate(time.Second)
 		var css string
+		var statusText string
 		switch u.status {
 		case 200:
 			css = "success"
+			statusText = "ok"
 		case 304:
 			css = "redir"
+			statusText = "redirected"
+		case 404:
+			css = "error"
+			statusText = "not found"
+		case 500, 501, 502, 503:
+			css = "error"
+			statusText = "server error"
 		default:
 			css = "error"
+			statusText = "no response"
 		}
-		content += fmt.Sprintf("<tr><td>%s</td><td class=\"%s\">%d</td><td>in %s</td><td>%s ago</td></tr>", u.url, css, u.status, r, l)
+
+		content += fmt.Sprintf("<tr><td>%s</td><td class=\"%s\">%s</td><td>in %s</td><td>%s ago</td></tr>", u.url, css, statusText, r, l)
 	}
 	content += "</tbody></table></body></html>"
 	w.Write([]byte(content))
