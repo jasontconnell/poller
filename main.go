@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"sync"
@@ -17,6 +18,15 @@ type urlResult struct {
 	status int
 	retry  time.Time
 	last   time.Time
+}
+
+type UrlResultModel struct {
+	Url        string
+	StatusText string
+	StatusCode int
+	Success    bool
+	Retry      string
+	Last       string
 }
 
 func get(c *http.Client, url string) (int, error) {
@@ -67,35 +77,49 @@ func poll(site *server.Site, list []*urlResult) {
 
 func statusHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
 	list := site.GetState("urls").([]*urlResult)
-	content := "<html><head><meta http-equiv=\"refresh\" content=\"15\"><style>.success { background-color: #3f3; } .redir { background-color: #999; } .error { background-color: #f33; }</style></head><body><table><thead><tr><th>Url</th><th>Status</th><th>Next Retry</th><th>Last Retry</th></tr></thead><tbody>"
+	t := site.GetState("template").(*template.Template)
+	model := []UrlResultModel{}
+
 	for _, u := range list {
-		var r, l time.Duration
-		r = time.Until(u.retry).Truncate(time.Second)
-		l = time.Since(u.last).Truncate(time.Second)
-		var css string
+
+		success := false
 		var statusText string
 		switch u.status {
 		case 200:
-			css = "success"
+			success = true
 			statusText = "ok"
 		case 304:
-			css = "redir"
 			statusText = "redirected"
+			success = true
 		case 404:
-			css = "error"
 			statusText = "not found"
+			success = false
 		case 500, 501, 502, 503:
-			css = "error"
 			statusText = "server error"
+			success = false
 		default:
-			css = "error"
 			statusText = "no response"
+			success = false
 		}
 
-		content += fmt.Sprintf("<tr><td>%s</td><td class=\"%s\">%s</td><td>in %s</td><td>%s ago</td></tr>", u.url, css, statusText, r, l)
+		var r, l time.Duration
+		r = time.Until(u.retry).Truncate(time.Second)
+		l = time.Since(u.last).Truncate(time.Second)
+
+		res := UrlResultModel{
+			Url:        u.url,
+			StatusCode: u.status,
+			StatusText: statusText,
+			Success:    success,
+			Last:       l.String(),
+			Retry:      r.String(),
+		}
+
+		model = append(model, res)
 	}
-	content += "</tbody></table></body></html>"
-	w.Write([]byte(content))
+
+	t.Execute(w, struct{ Items []UrlResultModel }{model})
+
 }
 
 func reloadHandler(site server.Site, w http.ResponseWriter, r *http.Request) {
@@ -119,6 +143,7 @@ func main() {
 	flag.Parse()
 
 	site := server.NewSite(server.Configuration{HostName: *host, Port: *port})
+	t := template.Must(template.New("Results").Parse(templateString))
 
 	site.AddHandler("/status", statusHandler)
 	site.AddHandler("/reload", reloadHandler)
@@ -135,6 +160,7 @@ func main() {
 	}
 	site.AddState("urls", list)
 	site.AddState("path", *urlsfile)
+	site.AddState("template", t)
 	go poll(&site, list)
 
 	server.Start(site)
