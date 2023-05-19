@@ -161,9 +161,9 @@ func main() {
 	site.AddState("urls", list)
 	site.AddState("path", *urlsfile)
 	site.AddState("template", t)
-	go poll(&site, list)
+	go poll(site, list)
 
-	server.Start(site)
+	server.Start(*site)
 }
 
 func getUrls(path string) ([]*urlResult, error) {
