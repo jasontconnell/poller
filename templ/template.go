@@ -1,6 +1,6 @@
-package main
+package templ
 
-const templateString string = `
+const TemplateString string = `
 {{ define "Results" }}
 <html>
     <head>
@@ -14,7 +14,6 @@ const templateString string = `
                     <tr>
                         <th scope="col">Url</th>
                         <th scope="col">Status</th>
-                        <th scope="col">Next Retry</th>
                         <th scope="col">Last Retry</th>
                     </tr>
                 </thead>
@@ -23,7 +22,6 @@ const templateString string = `
                     <tr class="{{ if not .Success }}table-danger{{end}}">
                         <td>{{.Url}}</td>
                         <td>{{.StatusText}}</td>
-                        <td>{{.Retry}}</td>
                         <td>{{.Last}}</td>
                     </tr>
                     {{ end }}

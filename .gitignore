@@ -1,2 +1,4 @@
 *.exe
-urls.txt
+*.ps1
+*.txt
+*.json

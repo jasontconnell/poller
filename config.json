@@ -1,0 +1,24 @@
+{
+    "site": {
+        "hostname": "localhost",
+        "port": 4444
+    },
+    "domains": [
+        {
+            "key": "site1",
+            "scheme": "https",
+            "domain": "site1.local.dev",
+            "headers": {
+                "apikey": "1234"
+            }
+        },
+        {
+            "key": "site2",
+            "scheme": "https",
+            "domain": "site2.local.dev",
+            "headers": {
+                "apikey": "5678"
+            }
+        }
+    ]
+}
