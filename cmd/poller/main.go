@@ -24,14 +24,19 @@ type site struct {
 	requests  []request
 	responses sync.Map
 	template  *template.Template
+	interval  int
 }
 
-func newSite(domains map[string]conf.Domain, reqs []request, tpl *template.Template) *site {
+func newSite(domains map[string]conf.Domain, reqs []request, tpl *template.Template, interval int) *site {
 	s := new(site)
 	s.domains = domains
 	s.requests = reqs
 	s.template = tpl
 	s.responses = sync.Map{}
+	s.interval = interval
+	if s.interval <= 60 {
+		s.interval = 60
+	}
 	return s
 }
 
@@ -123,7 +128,7 @@ func poll(s *site) {
 
 		wg.Wait()
 
-		time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * time.Duration(s.interval))
 	}
 }
 
@@ -204,7 +209,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := newSite(domains, list, t)
+	s := newSite(domains, list, t, cfg.Interval)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", s.statusHandler)
 

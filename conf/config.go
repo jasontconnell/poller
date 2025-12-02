@@ -3,8 +3,9 @@ package conf
 import "github.com/jasontconnell/conf"
 
 type Config struct {
-	Site    Site     `json:"site"`
-	Domains []Domain `json:"domains"`
+	Site     Site     `json:"site"`
+	Interval int      `json:"interval"`
+	Domains  []Domain `json:"domains"`
 }
 
 type Site struct {
